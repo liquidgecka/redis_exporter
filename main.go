@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/oliver006/redis_exporter/exporter"
+	"github.com/liquidgecka/redis_exporter/exporter"
 	"github.com/prometheus/client_golang/prometheus"
 )
 

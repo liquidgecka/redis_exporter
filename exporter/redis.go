@@ -102,17 +102,17 @@ func (e *Exporter) initGauges() {
 		Namespace: e.namespace,
 		Name:      "db_keys_total",
 		Help:      "Total number of keys by DB",
-	}, []string{"addr", "db"})
+	}, []string{"instance", "db"})
 	e.metrics["db_expiring_keys_total"] = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: e.namespace,
 		Name:      "db_expiring_keys_total",
 		Help:      "Total number of expiring keys by DB",
-	}, []string{"addr", "db"})
+	}, []string{"instance", "db"})
 	e.metrics["db_avg_ttl_seconds"] = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: e.namespace,
 		Name:      "db_avg_ttl_seconds",
 		Help:      "Avg TTL in seconds",
-	}, []string{"addr", "db"})
+	}, []string{"instance", "db"})
 }
 
 // NewRedisExporter returns a new exporter of Redis metrics.
@@ -301,12 +301,22 @@ func (e *Exporter) scrape(scrapes chan<- scrapeResult) {
 	for idx, addr := range e.redis.Addrs {
 		c, err := redis.Dial("tcp", addr)
 		if err != nil {
+			scrapes <- scrapeResult{
+				Name:  "up",
+				Addr:  addr,
+				Value: 0.0,
+			}
 			log.Printf("redis err: %s", err)
 			errorCount++
 			continue
 		}
 		if len(e.redis.Passwords) > idx && e.redis.Passwords[idx] != "" {
 			if _, err := c.Do("AUTH", e.redis.Passwords[idx]); err != nil {
+				scrapes <- scrapeResult{
+					Name:  "up",
+					Addr:  addr,
+					Value: 0.0,
+				}
 				log.Printf("redis err: %s", err)
 				errorCount++
 				continue
@@ -330,6 +340,12 @@ func (e *Exporter) scrape(scrapes chan<- scrapeResult) {
 			errorCount++
 		}
 
+		scrapes <- scrapeResult{
+			Name:  "up",
+			Addr:  addr,
+			Value: 1.0,
+		}
+
 		c.Close()
 	}
 
@@ -345,9 +361,9 @@ func (e *Exporter) setMetrics(scrapes <-chan scrapeResult) {
 			e.metrics[name] = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 				Namespace: e.namespace,
 				Name:      name,
-			}, []string{"addr"})
+			}, []string{"instance"})
 		}
-		var labels prometheus.Labels = map[string]string{"addr": scr.Addr}
+		var labels prometheus.Labels = map[string]string{"instance": scr.Addr}
 		if len(scr.DB) > 0 {
 			labels["db"] = scr.DB
 		}
